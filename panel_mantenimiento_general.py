@@ -17,6 +17,75 @@ from update import detectar_modo_ejecucion
 import update_checker
 
 
+def verificar_estructura_inicial():
+    """Comprueba y crea la estructura básica del proyecto."""
+    carpetas = [
+        'config',
+        'logs',
+        'assets',
+        'launchers',
+        'subpanels',
+        'docs',
+    ]
+    for carpeta in carpetas:
+        if not os.path.exists(carpeta):
+            os.makedirs(carpeta, exist_ok=True)
+            log(f'Se creó la carpeta {carpeta}')
+
+    # ---------- Archivos requeridos ----------
+    entorno = os.path.join('config', 'entorno.txt')
+    if not os.path.exists(entorno):
+        contenido = (
+            'modo_oscuro=false\n'
+            'titulo=Panel de Mantenimiento General\n'
+            'documentacion=docs/manual.pdf\n'
+        )
+        with open(entorno, 'w', encoding='utf-8') as f:
+            f.write(contenido)
+        log('Se creó config/entorno.txt con valores por defecto')
+
+    panels = os.path.join('config', 'panels.json')
+    if not os.path.exists(panels):
+        paneles = []
+        if os.path.exists('subpanels'):
+            for f in os.listdir('subpanels'):
+                if f.endswith('_panel.py'):
+                    paneles.append(f[:-9])
+        with open(panels, 'w', encoding='utf-8') as f:
+            json.dump(paneles, f, indent=2)
+        log('Se creó config/panels.json')
+
+    version_file = 'version.txt'
+    if not os.path.exists(version_file):
+        with open(version_file, 'w', encoding='utf-8') as f:
+            f.write('version=1.0.0\n')
+        log('Se creó version.txt con versión 1.0.0')
+
+    faltantes = []
+    exe_cv = os.path.join('launchers', 'cv_api_launcher.exe')
+    exe_n8n = os.path.join('launchers', 'n8n_launcher.exe')
+    if not os.path.exists(exe_cv):
+        faltantes.append('cv_api_launcher.exe')
+    if not os.path.exists(exe_n8n):
+        faltantes.append('n8n_launcher.exe')
+
+    ico = os.path.join('assets', 'Guante.ico')
+    if not os.path.exists(ico):
+        log('Guante.ico no encontrado', level='WARNING')
+        faltantes.append('Guante.ico')
+
+    if faltantes:
+        messagebox.showwarning(
+            'Archivos faltantes',
+            'El panel funcionará con funciones limitadas. Faltan: ' + ', '.join(faltantes)
+        )
+        log('Archivos faltantes: ' + ', '.join(faltantes), level='WARNING')
+
+    # BONUS: detectar modo de ejecución si es un ejecutable
+    if getattr(sys, 'frozen', False):
+        detectar_modo_ejecucion()
+
+
 # ---------- FUNCIONES DE SISTEMA ----------
 def n8n_disponible_en_path(): return shutil.which("n8n") is not None
 
@@ -159,6 +228,7 @@ root.resizable(False, False)
 style = ttk.Style()
 style.theme_use("clam")
 
+verificar_estructura_inicial()
 verificar_dependencias()
 detectar_modo_ejecucion()
 version_actual = update_checker.get_local_version()
