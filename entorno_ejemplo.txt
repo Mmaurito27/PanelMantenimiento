@@ -1,0 +1,3 @@
+modo_oscuro=false
+titulo=Panel de Mantenimiento General
+documentacion=docs/manual.pdf
