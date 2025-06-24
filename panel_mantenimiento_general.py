@@ -5,9 +5,11 @@ import webbrowser
 import socket
 import shutil
 import os
+import sys
 
 from logger import log
 from config import CONFIG
+from theme import aplicar_tema
 
 
 # ---------- FUNCIONES DE SISTEMA ----------
@@ -69,6 +71,27 @@ def abrir_cv_analyzer():
         log(f"Error ejecutando CV Analyzer: {e}", level="ERROR")
         messagebox.showerror("Error grave", str(e))
 
+def verificar_dependencias():
+    """Comprueba la existencia de dependencias principales."""
+    faltantes = []
+    if shutil.which("python") is None:
+        faltantes.append("Python")
+    if shutil.which("node") is None:
+        faltantes.append("Node")
+    if shutil.which("n8n") is None:
+        faltantes.append("N8N")
+    if not os.path.exists(os.path.join("launchers", "cv_api_launcher.exe")):
+        faltantes.append("cv_api_launcher.exe")
+
+    if faltantes:
+        messagebox.showwarning(
+            "Dependencias faltantes",
+            "No se encontraron: " + ", ".join(faltantes),
+        )
+        log("Faltan dependencias: " + ", ".join(faltantes), level="WARNING")
+    else:
+        log("Todas las dependencias están presentes.")
+
 # ---------- PANEL PRINCIPAL ----------
 root = tk.Tk()
 root.geometry("400x500")
@@ -76,8 +99,11 @@ root.resizable(False, False)
 style = ttk.Style()
 style.theme_use("clam")
 
+verificar_dependencias()
+
 # ---------- TEMA Y ESTILO ----------
 modo_oscuro_activo = CONFIG.get("modo_oscuro", "false").lower() == "true"
+tema_actual = "oscuro" if modo_oscuro_activo else "claro"
 
 class ThemeSwitch(ttk.Frame):
     def __init__(self, master, command=None, checked=False):
@@ -106,28 +132,11 @@ class ThemeSwitch(ttk.Frame):
             self.canvas.create_oval(4,4,22,20, fill="#ffffff", outline="#ffffff")
             self.canvas.create_text(36,12, text="🌙")
 
-def aplicar_modo_oscuro(ventana, oscuro=True):
-    if oscuro:
-        ventana.configure(bg="#16202a")
-        ventana.option_add("*TButton*background", "#1e1e1e")
-        ventana.option_add("*TButton*foreground", "#ffffff")
-        ventana.option_add("*Button*background", "#1e1e1e")
-        ventana.option_add("*Button*foreground", "#ffffff")
-        ventana.option_add("*Label*background", "#16202a")
-        ventana.option_add("*Label*foreground", "#ffffff")
-    else:
-        ventana.configure(bg="#f0f0f0")
-        ventana.option_add("*TButton*background", "#ffffff")
-        ventana.option_add("*TButton*foreground", "#000000")
-        ventana.option_add("*Button*background", "#ffffff")
-        ventana.option_add("*Button*foreground", "#000000")
-        ventana.option_add("*Label*background", "#f0f0f0")
-        ventana.option_add("*Label*foreground", "#000000")
-
 def toggle_modo_oscuro(valor: bool):
     global modo_oscuro_activo
     modo_oscuro_activo = valor
-    aplicar_modo_oscuro(root, oscuro=modo_oscuro_activo)
+    tema = "oscuro" if valor else "claro"
+    aplicar_tema(root, tema)
     CONFIG['modo_oscuro'] = 'true' if modo_oscuro_activo else 'false'
 
 theme_switch = ThemeSwitch(root, command=toggle_modo_oscuro, checked=modo_oscuro_activo)
@@ -137,15 +146,16 @@ def abrir_documentacion():
     ruta = CONFIG.get("documentacion", os.path.join("docs", "manual.pdf"))
     if os.path.exists(ruta):
         webbrowser.open(ruta)
-        log("Se abrió la documentación")
+        log("Se abrió la documentación local")
     else:
-        messagebox.showwarning("No encontrado", "No se encontró la documentación")
-        log(f"Documentación no encontrada: {ruta}", level="WARNING")
+        url = CONFIG.get("documentacion_url", "https://example.com/manual")
+        webbrowser.open(url)
+        log(f"Documentación local no encontrada. Abrió {url}", level="WARNING")
 
-doc_btn = ttk.Button(root, text="📄", command=abrir_documentacion)
-doc_btn.place(x=300, y=10)
+doc_btn = ttk.Button(root, text="📘 Ayuda / Manual", command=abrir_documentacion)
+doc_btn.place(x=220, y=10)
 
-aplicar_modo_oscuro(root, oscuro=modo_oscuro_activo)
+aplicar_tema(root, tema_actual)
 
 # ---------- ÍCONO Y TÍTULO ----------
 titulo = CONFIG.get("titulo", "Panel de Mantenimiento General")

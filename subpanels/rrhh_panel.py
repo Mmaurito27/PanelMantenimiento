@@ -8,9 +8,11 @@ import socket
 import shutil
 import threading
 import requests
+import sys
 
 from logger import log
 from config import CONFIG
+from theme import aplicar_tema
 
 # -------------------- RUTAS Y CONFIG --------------------
 BASE_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "RRHHBot")
@@ -199,6 +201,16 @@ def abrir_carpeta_rrhhbot():
     os.startfile(BASE_DIR)
     log("Se abrió la carpeta RRHHBot")
 
+def editar_entorno():
+    os.system(f'notepad "{CONFIG_FILE}"')
+    log("Se editó entorno.txt")
+    if messagebox.askyesno(
+        "Reiniciar", "¿Reiniciar el panel para aplicar cambios?"
+    ):
+        log("Reiniciando aplicación por cambio de entorno")
+        python = sys.executable
+        os.execl(python, python, os.path.join(os.path.dirname(__file__), "..", "panel_mantenimiento_general.py"))
+
 
 
 # -------------------- FUNCIÓN DE ENTRADA DEL SUBPANEL --------------------
@@ -207,6 +219,7 @@ def abrir_rrhh_panel():
 
     titulo = CONFIG.get("titulo", "Panel de Mantenimiento - RRHH")
     modo_oscuro = CONFIG.get("modo_oscuro", "false").lower() == "true"
+    tema = "oscuro" if modo_oscuro else "claro"
 
     ventana = tk.Toplevel()
     ventana.title(titulo)
@@ -218,8 +231,7 @@ def abrir_rrhh_panel():
     except Exception as e:
         log(f"No se pudo cargar icono en RRHH: {e}", level="WARNING")
 
-    if modo_oscuro:
-        ventana.configure(bg="#1e1e1e")
+    aplicar_tema(ventana, tema)
 
     tk.Label(ventana, text=titulo, font=("Arial", 14)).pack(pady=10)
     frame = tk.Frame(ventana)
@@ -248,6 +260,7 @@ def abrir_rrhh_panel():
     tk.Button(frame_tecnico, text="Ver estado de servicios", width=30, command=ver_estado_servicios).pack(pady=2)
     tk.Button(frame_tecnico, text="Ver archivo de log", width=30, command=ver_log).pack(pady=2)
     tk.Button(frame_tecnico, text="Abrir carpeta RRHHBot", width=30, command=abrir_carpeta_rrhhbot).pack(pady=2)
+    tk.Button(frame_tecnico, text="Editar entorno", width=30, command=editar_entorno).pack(pady=2)
 
     ventana.bind("<Control-s>", mostrar_modo_tecnico)
     log("Subpanel RRHH iniciado.")
