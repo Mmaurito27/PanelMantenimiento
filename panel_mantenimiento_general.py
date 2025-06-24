@@ -13,6 +13,7 @@ from datetime import datetime
 from logger import log, log_usuario
 from config import CONFIG
 from theme import aplicar_tema
+from tooltip import Tooltip
 from update import detectar_modo_ejecucion
 import update_checker
 
@@ -42,14 +43,18 @@ def verificar_estructura_inicial():
     # ---------- Archivos requeridos ----------
     entorno = os.path.join('config', 'entorno.txt')
     if not os.path.exists(entorno):
-        contenido = (
-            'modo_oscuro=false\n'
-            'titulo=Panel de Mantenimiento General\n'
-            'documentacion=docs/manual.pdf\n'
-        )
-        with open(entorno, 'w', encoding='utf-8') as f:
-            f.write(contenido)
-        log('Se creó config/entorno.txt con valores por defecto')
+        src = os.path.join('docs', 'entorno_default.txt')
+        if os.path.exists(src):
+            shutil.copy2(src, entorno)
+        else:
+            contenido = (
+                'modo_oscuro=false\n'
+                'titulo=Panel de Mantenimiento General\n'
+                'documentacion=docs/manual.pdf\n'
+            )
+            with open(entorno, 'w', encoding='utf-8') as f:
+                f.write(contenido)
+        log('Se creó config/entorno.txt')
 
     panels = os.path.join('config', 'panels.json')
     if not os.path.exists(panels):
@@ -61,6 +66,11 @@ def verificar_estructura_inicial():
         with open(panels, 'w', encoding='utf-8') as f:
             json.dump(paneles, f, indent=2)
         log('Se creó config/panels.json')
+
+    if not os.path.exists('requirements.txt'):
+        with open('requirements.txt', 'w', encoding='utf-8') as f:
+            f.write('')
+        log('Se creó requirements.txt vacío')
 
     version_file = 'version.txt'
     if not os.path.exists(version_file):
@@ -88,9 +98,15 @@ def verificar_estructura_inicial():
         )
         log('Archivos faltantes: ' + ', '.join(faltantes), level='WARNING')
 
-    # BONUS: detectar modo de ejecución si es un ejecutable
     if getattr(sys, 'frozen', False):
-        detectar_modo_ejecucion()
+        modo = detectar_modo_ejecucion()
+        log(f'Ejecución empaquetada: {modo}')
+        dlls = [f for f in os.listdir(os.path.dirname(sys.executable)) if f.lower().startswith('python') and f.lower().endswith('.dll')]
+        if not dlls:
+            messagebox.showerror('Error', 'Falta la DLL de Python para ejecutar el panel.')
+            log('DLL de Python faltante', level='ERROR')
+    else:
+        log('Ejecución en modo desarrollo')
 
 
 # ---------- FUNCIONES DE SISTEMA ----------
@@ -155,6 +171,18 @@ def abrir_cv_analyzer():
         log(f"Error ejecutando CV Analyzer: {e}", level="ERROR")
         messagebox.showerror("Error grave", str(e))
         log_usuario('Ejecutar CV Analyzer', resultado='ERROR')
+
+
+def abrir_rrhh():
+    """Abre el subpanel de RRHH si está disponible."""
+    abrir_subpanel('rrhh')
+
+
+def modulo_en_desarrollo(nombre: str):
+    """Muestra un aviso de módulo en desarrollo."""
+    messagebox.showinfo('En desarrollo', f'El módulo {nombre} está en desarrollo')
+    log(f'Módulo {nombre} en desarrollo', level='WARNING')
+    log_usuario(f'Módulo {nombre}', resultado='NO_IMPLEMENTADO')
 
 def verificar_dependencias():
     """Comprueba la existencia de dependencias principales."""
@@ -288,29 +316,6 @@ theme_switch = ThemeSwitch(root, command=toggle_modo_oscuro, checked=modo_oscuro
 theme_switch.place(x=340, y=10)
 Tooltip(theme_switch, 'Cambiar tema oscuro/claro')
 
-
-class Tooltip:
-    def __init__(self, widget, text: str):
-        self.widget = widget
-        self.text = text
-        self.tip = None
-        widget.bind("<Enter>", self.show)
-        widget.bind("<Leave>", self.hide)
-
-    def show(self, _=None):
-        if self.tip:
-            return
-        x = self.widget.winfo_rootx() + 20
-        y = self.widget.winfo_rooty() + 20
-        self.tip = tk.Toplevel(self.widget)
-        self.tip.wm_overrideredirect(True)
-        self.tip.geometry(f"+{x}+{y}")
-        tk.Label(self.tip, text=self.text, background="yellow", relief="solid", borderwidth=1).pack()
-
-    def hide(self, _=None):
-        if self.tip:
-            self.tip.destroy()
-            self.tip = None
 
 
 def simple_input(prompt: str) -> str:

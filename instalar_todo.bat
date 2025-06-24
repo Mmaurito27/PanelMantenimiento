@@ -8,8 +8,8 @@ for %%d in (logs config launchers subpanels assets) do (
 
 rem Copiar archivo de entorno por defecto
 if not exist "config\entorno.txt" (
-    if exist "entorno_ejemplo.txt" (
-        copy "entorno_ejemplo.txt" "config\entorno.txt" >nul
+    if exist "docs\entorno_default.txt" (
+        copy "docs\entorno_default.txt" "config\entorno.txt" >nul
     ) else (
         echo modo_oscuro=false>"config\entorno.txt"
         echo titulo=Panel de Mantenimiento General>>"config\entorno.txt"
@@ -39,6 +39,13 @@ if not exist "_internal\python3*.dll" (
 if %missing%==1 (
     echo Por favor copie los ejecutables faltantes a la carpeta launchers.
     start "" explorer "%cd%\launchers"
+)
+
+if not exist "requirements.txt" (
+    type nul > "requirements.txt"
+)
+if exist "requirements.txt" (
+    pip install -r requirements.txt
 )
 
 echo Entorno listo.
