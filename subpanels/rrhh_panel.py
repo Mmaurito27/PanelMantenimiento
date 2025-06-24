@@ -169,10 +169,24 @@ def simple_input(prompt):
     win.wait_window()
     return getattr(win, 'result', '')
 
+
+def slide_in(frame, h=0, target=120):
+    frame.pack_propagate(False)
+    frame.configure(height=h)
+    if h < target:
+        frame.after(10, lambda: slide_in(frame, h+10, target))
+
+
+def fade_in_window(win, alpha=0.0):
+    win.attributes('-alpha', alpha)
+    if alpha < 1.0:
+        win.after(20, lambda: fade_in_window(win, alpha+0.1))
+
 def mostrar_modo_tecnico(event=None):
     clave = simple_input("🔒 Área restringida. Ingresá clave de sistemas:")
     if clave == "2391":
         frame_tecnico.pack(pady=(20, 5))
+        slide_in(frame_tecnico)
         log("Modo técnico activado.")
     else:
         messagebox.showwarning("Acceso denegado", "Clave incorrecta.")
@@ -225,6 +239,7 @@ def abrir_rrhh_panel():
     ventana.title(titulo)
     ventana.geometry("470x380")
     ventana.resizable(False, False)
+    ventana.attributes('-alpha', 0.0)
 
     try:
         ventana.iconbitmap("assets/Guante.ico")
@@ -232,6 +247,7 @@ def abrir_rrhh_panel():
         log(f"No se pudo cargar icono en RRHH: {e}", level="WARNING")
 
     aplicar_tema(ventana, tema)
+    fade_in_window(ventana)
 
     tk.Label(ventana, text=titulo, font=("Arial", 14)).pack(pady=10)
     frame = tk.Frame(ventana)
@@ -261,6 +277,7 @@ def abrir_rrhh_panel():
     tk.Button(frame_tecnico, text="Ver archivo de log", width=30, command=ver_log).pack(pady=2)
     tk.Button(frame_tecnico, text="Abrir carpeta RRHHBot", width=30, command=abrir_carpeta_rrhhbot).pack(pady=2)
     tk.Button(frame_tecnico, text="Editar entorno", width=30, command=editar_entorno).pack(pady=2)
+    frame_tecnico.pack_forget()
 
     ventana.bind("<Control-s>", mostrar_modo_tecnico)
     log("Subpanel RRHH iniciado.")

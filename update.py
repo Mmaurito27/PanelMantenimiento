@@ -1,8 +1,44 @@
 import json
 import os
+import sys
 import urllib.request
 
 from logger import log
+from config import CONFIG, CONFIG_FILE
+
+
+def detectar_modo_ejecucion() -> str:
+    """Determina si el ejecutable se ejecuta de forma portable o fija."""
+    exe_path = os.path.abspath(sys.argv[0])
+    desktop = os.path.expanduser('~/Desktop')
+    if exe_path.startswith(desktop) or 'Desktop' in exe_path:
+        modo = 'portable'
+    else:
+        modo = 'fija'
+
+    # Actualiza config en memoria y archivo
+    CONFIG['instalacion'] = modo
+    actualizar_entorno(modo)
+    log(f"Modo de ejecuci\u00f3n: {modo}")
+    return modo
+
+
+def actualizar_entorno(modo: str) -> None:
+    """Escribe el modo de instalaci\u00f3n en entorno.txt."""
+    lineas = []
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+            lineas = f.readlines()
+    escrito = False
+    for i, linea in enumerate(lineas):
+        if linea.startswith('instalacion='):
+            lineas[i] = f'instalacion={modo}\n'
+            escrito = True
+            break
+    if not escrito:
+        lineas.append(f'instalacion={modo}\n')
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        f.writelines(lineas)
 
 GITHUB_JSON = "https://raw.githubusercontent.com/example/repo/master/version.json"
 

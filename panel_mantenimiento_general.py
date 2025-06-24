@@ -10,6 +10,8 @@ import sys
 from logger import log
 from config import CONFIG
 from theme import aplicar_tema
+from update import detectar_modo_ejecucion
+import update_checker
 
 
 # ---------- FUNCIONES DE SISTEMA ----------
@@ -100,6 +102,8 @@ style = ttk.Style()
 style.theme_use("clam")
 
 verificar_dependencias()
+detectar_modo_ejecucion()
+version_actual = update_checker.get_local_version()
 
 # ---------- TEMA Y ESTILO ----------
 modo_oscuro_activo = CONFIG.get("modo_oscuro", "false").lower() == "true"
@@ -137,10 +141,74 @@ def toggle_modo_oscuro(valor: bool):
     modo_oscuro_activo = valor
     tema = "oscuro" if valor else "claro"
     aplicar_tema(root, tema)
+    _update_sidebar_theme()
     CONFIG['modo_oscuro'] = 'true' if modo_oscuro_activo else 'false'
 
 theme_switch = ThemeSwitch(root, command=toggle_modo_oscuro, checked=modo_oscuro_activo)
 theme_switch.place(x=340, y=10)
+
+
+def simple_input(prompt: str) -> str:
+    win = tk.Toplevel(root)
+    win.title('Input')
+    tk.Label(win, text=prompt).pack()
+    entry = tk.Entry(win, width=50)
+    entry.pack()
+    entry.focus()
+
+    def submit():
+        win.result = entry.get()
+        win.destroy()
+
+    tk.Button(win, text='Aceptar', command=submit).pack()
+    win.grab_set()
+    win.wait_window()
+    return getattr(win, 'result', '')
+
+
+def ver_log_extendido():
+    win = tk.Toplevel(root)
+    win.title('Log extendido')
+    win.geometry('500x400')
+    text = tk.Text(win, wrap='none')
+    text.pack(fill='both', expand=True, side='left')
+    sb = ttk.Scrollbar(win, command=text.yview)
+    sb.pack(side='right', fill='y')
+    text.configure(yscrollcommand=sb.set)
+    try:
+        with open(os.path.join('logs', 'panel.log'), 'r', encoding='utf-8') as f:
+            for line in f:
+                if '[ERROR]' in line:
+                    tag = 'error'
+                elif '[WARNING]' in line:
+                    tag = 'warn'
+                else:
+                    tag = 'info'
+                text.insert('end', line, tag)
+    except Exception as e:
+        text.insert('end', f'No se pudo cargar el log: {e}')
+
+    text.tag_config('error', background='#ffcccc')
+    text.tag_config('warn', background='#fff2cc')
+
+
+def mostrar_modo_tecnico(event=None):
+    clave = simple_input('🔒 Área restringida. Ingresá clave de sistemas:')
+    if clave == '2391':
+        frame_tecnico.pack(pady=(10, 5))
+        slide_in(frame_tecnico)
+        log('Modo técnico activado.')
+    else:
+        messagebox.showwarning('Acceso denegado', 'Clave incorrecta.')
+        log('Intento fallido de acceso al modo técnico.')
+
+
+def slide_in(frame, h=0, target=120):
+    frame.pack_propagate(False)
+    frame.configure(height=h)
+    if h < target:
+        frame.after(10, lambda: slide_in(frame, h+10, target))
+
 
 def abrir_documentacion():
     ruta = CONFIG.get("documentacion", os.path.join("docs", "manual.pdf"))
@@ -154,8 +222,36 @@ def abrir_documentacion():
 
 doc_btn = ttk.Button(root, text="📘 Ayuda / Manual", command=abrir_documentacion)
 doc_btn.place(x=220, y=10)
+ttk.Label(root, text=f"v{version_actual}").place(x=10, y=10)
 
 aplicar_tema(root, tema_actual)
+
+# ---------- BARRA LATERAL ----------
+sidebar_visible = True
+sidebar_frame = tk.Frame(root, width=40)
+sidebar_frame.pack(side="left", fill="y")
+
+def toggle_sidebar():
+    global sidebar_visible
+    if sidebar_visible:
+        sidebar_frame.pack_forget()
+        sidebar_visible = False
+    else:
+        sidebar_frame.pack(side="left", fill="y")
+        sidebar_visible = True
+
+toggle_btn = ttk.Button(root, text="≡", width=2, command=toggle_sidebar)
+toggle_btn.place(x=60, y=10)
+
+def _update_sidebar_theme():
+    aplicar_tema(sidebar_frame, "oscuro" if modo_oscuro_activo else "claro")
+
+_update_sidebar_theme()
+
+ttk.Button(sidebar_frame, text="🏠", width=3, command=lambda: None).pack(pady=5)
+ttk.Button(sidebar_frame, text="👤", width=3, command=lambda: abrir_rrhh()).pack(pady=5)
+ttk.Button(sidebar_frame, text="📢", width=3, command=lambda: modulo_en_desarrollo('Marketing')).pack(pady=5)
+ttk.Button(sidebar_frame, text="✅", width=3, command=lambda: modulo_en_desarrollo('Calidad')).pack(pady=5)
 
 # ---------- ÍCONO Y TÍTULO ----------
 titulo = CONFIG.get("titulo", "Panel de Mantenimiento General")
@@ -199,6 +295,12 @@ for nombre, accion in areas:
     ttk.Button(main_frame, text=nombre, width=30, command=accion).pack(fill="x", pady=3)
 
 ttk.Button(main_frame, text="Salir", command=root.destroy).pack(pady=10)
+
+# ---------- FRAME T\xc9CNICO ----------
+frame_tecnico = ttk.LabelFrame(root, text="\ud83d\udd27 Modo T\xe9cnico", padding=10)
+ttk.Button(frame_tecnico, text="Ver LOG extendido", command=ver_log_extendido).pack(pady=2)
+frame_tecnico.pack_forget()
+root.bind("<Control-s>", mostrar_modo_tecnico)
 
 # ---------- FINAL ----------
 root.mainloop()
