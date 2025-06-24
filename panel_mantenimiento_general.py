@@ -6,8 +6,11 @@ import socket
 import shutil
 import os
 import sys
+import importlib
+import json
+from datetime import datetime
 
-from logger import log
+from logger import log, log_usuario
 from config import CONFIG
 from theme import aplicar_tema
 from update import detectar_modo_ejecucion
@@ -37,9 +40,11 @@ def abrir_n8n():
         subprocess.Popen("n8n", shell=True)
         abrir_navegador_n8n()
         log("N8N iniciado.")
+        log_usuario('Abrir N8N')
     except Exception as e:
         messagebox.showerror("Error grave", f"N8N falló:\n{e}")
         log(f"Error al abrir N8N: {e}", level="ERROR")
+        log_usuario('Abrir N8N', resultado='ERROR')
 
 def abrir_navegador_n8n():
     try:
@@ -69,9 +74,11 @@ def abrir_cv_analyzer():
 
         subprocess.Popen(path, shell=True)
         log("cv_api_launcher iniciado")
+        log_usuario('Ejecutar CV Analyzer')
     except Exception as e:
         log(f"Error ejecutando CV Analyzer: {e}", level="ERROR")
         messagebox.showerror("Error grave", str(e))
+        log_usuario('Ejecutar CV Analyzer', resultado='ERROR')
 
 def verificar_dependencias():
     """Comprueba la existencia de dependencias principales."""
@@ -93,6 +100,57 @@ def verificar_dependencias():
         log("Faltan dependencias: " + ", ".join(faltantes), level="WARNING")
     else:
         log("Todas las dependencias están presentes.")
+
+
+def _load_panels():
+    """Carga la lista de paneles dinámicos desde config/panels.json"""
+    path = os.path.join('config', 'panels.json')
+    if not os.path.exists(path):
+        return ['rrhh']
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return ['rrhh']
+
+
+def _save_panels(paneles):
+    path = os.path.join('config', 'panels.json')
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(paneles, f, indent=2)
+
+
+def backup_entorno():
+    os.makedirs('backups', exist_ok=True)
+    origen = os.path.join('config', 'entorno.txt')
+    if os.path.exists(origen):
+        ts = datetime.now().strftime('%Y-%m-%d_%H%M')
+        dest = os.path.join('backups', f'entorno_backup_{ts}.txt')
+        shutil.copy2(origen, dest)
+
+
+def restaurar_backup():
+    archivos = []
+    if os.path.exists("backups"):
+        archivos = [f for f in os.listdir("backups") if f.startswith("entorno_backup_")]
+    if not archivos:
+        messagebox.showinfo("Restaurar", "No hay backups disponibles")
+        return
+    win = tk.Toplevel(root)
+    win.title("Restaurar backup")
+    lb = tk.Listbox(win, width=50)
+    for f in archivos:
+        lb.insert("end", f)
+    lb.pack(padx=10, pady=10)
+    def restaurar():
+        sel = lb.curselection()
+        if not sel:
+            return
+        archivo = os.path.join("backups", lb.get(sel[0]))
+        shutil.copy2(archivo, os.path.join("config", "entorno.txt"))
+        messagebox.showinfo("Restaurar", "Archivo restaurado")
+        win.destroy()
+    ttk.Button(win, text="Restaurar", command=restaurar).pack(pady=5)
 
 # ---------- PANEL PRINCIPAL ----------
 root = tk.Tk()
@@ -139,6 +197,7 @@ class ThemeSwitch(ttk.Frame):
 def toggle_modo_oscuro(valor: bool):
     global modo_oscuro_activo
     modo_oscuro_activo = valor
+    backup_entorno()
     tema = "oscuro" if valor else "claro"
     aplicar_tema(root, tema)
     _update_sidebar_theme()
@@ -146,6 +205,31 @@ def toggle_modo_oscuro(valor: bool):
 
 theme_switch = ThemeSwitch(root, command=toggle_modo_oscuro, checked=modo_oscuro_activo)
 theme_switch.place(x=340, y=10)
+Tooltip(theme_switch, 'Cambiar tema oscuro/claro')
+
+
+class Tooltip:
+    def __init__(self, widget, text: str):
+        self.widget = widget
+        self.text = text
+        self.tip = None
+        widget.bind("<Enter>", self.show)
+        widget.bind("<Leave>", self.hide)
+
+    def show(self, _=None):
+        if self.tip:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + 20
+        self.tip = tk.Toplevel(self.widget)
+        self.tip.wm_overrideredirect(True)
+        self.tip.geometry(f"+{x}+{y}")
+        tk.Label(self.tip, text=self.text, background="yellow", relief="solid", borderwidth=1).pack()
+
+    def hide(self, _=None):
+        if self.tip:
+            self.tip.destroy()
+            self.tip = None
 
 
 def simple_input(prompt: str) -> str:
@@ -222,6 +306,7 @@ def abrir_documentacion():
 
 doc_btn = ttk.Button(root, text="📘 Ayuda / Manual", command=abrir_documentacion)
 doc_btn.place(x=220, y=10)
+Tooltip(doc_btn, 'Abrir documentación del sistema')
 ttk.Label(root, text=f"v{version_actual}").place(x=10, y=10)
 
 aplicar_tema(root, tema_actual)
@@ -268,37 +353,71 @@ main_frame.pack(fill="both", expand=True)
 ttk.Label(main_frame, text=titulo, font=("Arial", 14, "bold")).pack(pady=(0,10))
 
 # ---------- BOTONES DE ÁREA ----------
-def abrir_rrhh():
+area_frame = ttk.Frame(main_frame)
+area_frame.pack()
+area_buttons = []
+
+
+def abrir_subpanel(nombre):
     try:
-        from subpanels import rrhh_panel
-        rrhh_panel.abrir_rrhh_panel()
-        log("Abrió subpanel RRHH")
+        mod = importlib.import_module(f'subpanels.{nombre}_panel')
+        getattr(mod, f'abrir_{nombre}_panel')()
+        log(f'Abrió subpanel {nombre}')
+        log_usuario(f'Abrir subpanel {nombre}')
     except Exception as e:
-        log(f"Error abriendo RRHH: {e}", level="ERROR")
-        messagebox.showerror("Error", str(e))
+        log(f'Error abriendo {nombre}: {e}', level='ERROR')
+        messagebox.showerror('Error', str(e))
+        log_usuario(f'Abrir subpanel {nombre}', resultado='ERROR')
 
-def modulo_en_desarrollo(nombre):
-    log(f"Módulo en desarrollo: {nombre}")
-    messagebox.showinfo("En desarrollo", f"🔧 El módulo de {nombre} aún no está disponible.")
 
-areas = [
-    ("RRHH", abrir_rrhh),
-    ("Marketing", lambda: modulo_en_desarrollo("Marketing")),
-    ("Comercial", lambda: modulo_en_desarrollo("Comercial")),
-    ("Logística", lambda: modulo_en_desarrollo("Logística")),
-    ("Sistemas", lambda: modulo_en_desarrollo("Sistemas")),
-    ("Calidad", lambda: modulo_en_desarrollo("Calidad")),
-    ("Dirección", lambda: modulo_en_desarrollo("Dirección")),
-]
+def actualizar_menu():
+    for b in area_buttons:
+        b.destroy()
+    area_buttons.clear()
+    for nombre in _load_panels():
+        btn = ttk.Button(area_frame, text=nombre.capitalize(), width=30,
+                         command=lambda n=nombre: abrir_subpanel(n))
+        btn.pack(fill='x', pady=3)
+        Tooltip(btn, f'Abrir módulo {nombre}')
+        area_buttons.append(btn)
 
-for nombre, accion in areas:
-    ttk.Button(main_frame, text=nombre, width=30, command=accion).pack(fill="x", pady=3)
+
+def crear_nuevo_panel():
+    nombre = simple_input('Nombre del nuevo panel:')
+    if not nombre:
+        return
+    key = nombre.lower().replace(' ', '_')
+    tpl = os.path.join('templates', 'panel_template.py')
+    if not os.path.exists(tpl):
+        messagebox.showerror('Error', 'Plantilla no encontrada')
+        return
+    with open(tpl, 'r', encoding='utf-8') as f:
+        contenido = f.read().replace('{panel_name}', nombre).replace('{panel_key}', key)
+    destino = os.path.join('subpanels', f'{key}_panel.py')
+    if os.path.exists(destino):
+        messagebox.showerror('Error', 'El panel ya existe')
+        return
+    with open(destino, 'w', encoding='utf-8') as f:
+        f.write(contenido)
+    paneles = _load_panels()
+    if key not in paneles:
+        paneles.append(key)
+        _save_panels(paneles)
+    actualizar_menu()
+    messagebox.showinfo('Panel', 'Nuevo panel creado')
+    log(f'Nuevo panel creado: {nombre}')
+    log_usuario(f'Crear panel {nombre}')
+
+
+actualizar_menu()
 
 ttk.Button(main_frame, text="Salir", command=root.destroy).pack(pady=10)
 
 # ---------- FRAME T\xc9CNICO ----------
 frame_tecnico = ttk.LabelFrame(root, text="\ud83d\udd27 Modo T\xe9cnico", padding=10)
 ttk.Button(frame_tecnico, text="Ver LOG extendido", command=ver_log_extendido).pack(pady=2)
+ttk.Button(frame_tecnico, text="Crear nuevo panel", command=crear_nuevo_panel).pack(pady=2)
+ttk.Button(frame_tecnico, text="Restaurar backup", command=restaurar_backup).pack(pady=2)
 frame_tecnico.pack_forget()
 root.bind("<Control-s>", mostrar_modo_tecnico)
 

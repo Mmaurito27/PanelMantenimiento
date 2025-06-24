@@ -64,3 +64,35 @@ def buscar_actualizaciones(version_actual: str, offline_path="updates/latest.zip
             log(f"Error al descargar actualización: {e}", level="ERROR")
     else:
         log("No hay actualizaciones disponibles")
+
+import zipfile
+import requests
+
+
+def subir_version():
+    """Comprime el proyecto y lo sube a un servidor indicado en update_config.json"""
+    cfg_path = 'update_config.json'
+    if not os.path.exists(cfg_path):
+        log('update_config.json no encontrado', level='ERROR')
+        return
+    with open(cfg_path, 'r', encoding='utf-8') as f:
+        cfg = json.load(f)
+    url = cfg.get('url')
+    version_file = cfg.get('version_file', 'version.json')
+    zip_name = 'version_upload.zip'
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for folder, _, files in os.walk('.'):
+            for file in files:
+                if '.git' in folder:
+                    continue
+                path = os.path.join(folder, file)
+                zf.write(path, os.path.relpath(path, '.'))
+    try:
+        with open(zip_name, 'rb') as fzip:
+            requests.post(url, files={'file': fzip})
+        log('Versión subida correctamente')
+    except Exception as e:
+        log(f'Error al subir versión: {e}', level='ERROR')
+    finally:
+        if os.path.exists(zip_name):
+            os.remove(zip_name)
