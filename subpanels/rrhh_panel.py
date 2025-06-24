@@ -3,14 +3,14 @@ import tkinter as tk
 from tkinter import messagebox
 import subprocess
 import webbrowser
-from datetime import datetime
 import json
 import socket
 import shutil
 import threading
 import requests
-import getpass
-from datetime import datetime
+
+from logger import log
+from config import CONFIG
 
 # -------------------- RUTAS Y CONFIG --------------------
 BASE_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "RRHHBot")
@@ -24,53 +24,12 @@ KEYWORDS_FILE = os.path.join(CONFIG_DIR, "keywords.json")
 CV_LAUNCHER = os.path.join(LAUNCHER_DIR, "cv_api_launcher.exe")
 N8N_LAUNCHER = "n8n"
 
-def leer_config():
-    config = {}
-    ruta = os.path.join("config", "entorno.txt")
-    if not os.path.exists(ruta):
-        log_warning("Archivo entorno.txt no encontrado.")
-        return config
-    try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            for linea in f:
-                if "=" in linea:
-                    clave, valor = linea.strip().split("=", 1)
-                    config[clave.strip()] = valor.strip()
-        log_info(f"Se leyó configuración: {config}")
-    except Exception as e:
-        log_error(f"Error al leer entorno.txt: {e}")
-    return config
-
 
 # -------------------- RUTAS DE LOG --------------------
 os.makedirs(LOG_DIR, exist_ok=True)
 if not os.path.exists(LOG_FILE):
     with open(LOG_FILE, "w", encoding="utf-8") as f:
         f.write("")
-# -------------------- FUNCIONES DE LOG --------------------
-def log(mensaje):
-    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{timestamp} {mensaje}\n")
-# -------------------- LOG AVANZADO --------------------
-os.makedirs(LOG_DIR, exist_ok=True)
-LOG_FILE = os.path.join(LOG_DIR, "panel.log")
-
-def write_log(msg, level="INFO"):
-    usuario = getpass.getuser()
-    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-    texto = f"{timestamp} [{level}] ({usuario}) {msg}\n"
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(texto)
-
-def log_info(msg):
-    write_log(msg, level="INFO")
-
-def log_warning(msg):
-    write_log(msg, level="WARNING")
-
-def log_error(msg):
-    write_log(msg, level="ERROR")
 
 
 # -------------------- FUNCIONES AUXILIARES --------------------
@@ -83,11 +42,6 @@ def crear_estructura():
     if not os.path.exists(KEYWORDS_FILE):
         with open(KEYWORDS_FILE, "w", encoding="utf-8") as f:
             json.dump(["excel", "rrhh", "reclutamiento"], f)
-
-def log(mensaje):
-    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{timestamp} {mensaje}\n")
 
 def puerto_en_uso(puerto):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -104,7 +58,7 @@ def abrir_n8n():
                 "N8N no encontrado",
                 "❗ N8N no está instalado o no está en el PATH.\n¿Deseás instalarlo ahora?"
             )
-            log_warning("N8N no encontrado, ofreció instalar.")
+            log("N8N no encontrado, ofreció instalar.", level="WARNING")
             if resp:
                 instalar_dependencias_n8n()
             return
@@ -114,21 +68,21 @@ def abrir_n8n():
                 "N8N ya se está ejecutando",
                 "El puerto 5678 ya está en uso.\n¿Querés abrir el navegador igualmente?"
             )
-            log_info("N8N ya estaba corriendo, ofreció abrir navegador.")
+            log("N8N ya estaba corriendo, ofreció abrir navegador.")
             if abrir:
                 abrir_navegador_n8n()
             return
 
         subprocess.Popen(N8N_LAUNCHER, shell=True)
         abrir_navegador_n8n()
-        log_info("Se ejecutó y abrió N8N.")
+        log("Se ejecutó y abrió N8N.")
         messagebox.showinfo(
             "N8N",
             "N8N se está ejecutando en segundo plano y se abrió el navegador."
         )
     except Exception as e:
         messagebox.showerror("Error grave", f"Ocurrió un error al abrir N8N:\n{e}")
-        log_error(f"Error inesperado abrir N8N: {e}")
+        log(f"Error inesperado abrir N8N: {e}", level="ERROR")
 
 def abrir_navegador_n8n():
     try:
@@ -137,29 +91,29 @@ def abrir_navegador_n8n():
         already_opened = getattr(abrir_navegador_n8n, "already_opened", False)
         if not already_opened:
             webbrowser.open("http://localhost:5678")
-            log_info("Navegador abierto en http://localhost:5678")
+            log("Navegador abierto en http://localhost:5678")
             abrir_navegador_n8n.already_opened = True
         else:
-            log_warning("Intento duplicado de abrir N8N (navegador ya abierto)")
+            log("Intento duplicado de abrir N8N (navegador ya abierto)", level="WARNING")
     except Exception as e:
         messagebox.showwarning("No se pudo abrir navegador", str(e))
-        log_warning(f"No se pudo abrir navegador: {e}")
+        log(f"No se pudo abrir navegador: {e}", level="WARNING")
 
 
 def instalar_dependencias_n8n():
     try:
         subprocess.run("npm install -g n8n", shell=True)
-        log_info("Se instalaron dependencias de N8N.")
+        log("Se instalaron dependencias de N8N.")
         messagebox.showinfo("N8N", "Dependencias instaladas.")
     except Exception as e:
-        log_error(f"Error al instalar N8N: {e}")
+        log(f"Error al instalar N8N: {e}", level="ERROR")
         messagebox.showerror("Error", f"Error instalando N8N:\n{e}")
 
 def ejecutar_cv_api():
     try:
         if not os.path.exists(CV_LAUNCHER):
             messagebox.showerror("Error", "cv_api_launcher.exe no encontrado en /launchers/")
-            log_error("No se encontró cv_api_launcher.exe")
+            log("No se encontró cv_api_launcher.exe", level="ERROR")
             return
 
         if puerto_en_uso(3001):
@@ -167,16 +121,16 @@ def ejecutar_cv_api():
                 "CV API ya se está ejecutando",
                 "El puerto 3001 ya está en uso.\n¿Querés continuar de todas formas?"
             )
-            log_info("CV API ya estaba corriendo, ofreció continuar.")
+            log("CV API ya estaba corriendo, ofreció continuar.")
             if not abrir:
                 return
 
         subprocess.Popen(CV_LAUNCHER, shell=True)
-        log_info("Se ejecutó cv_api_launcher.exe")
+        log("Se ejecutó cv_api_launcher.exe")
         messagebox.showinfo("CV API", "El Analizador de CVs se está ejecutando en segundo plano.")
     except Exception as e:
         messagebox.showerror("Error grave", f"Ocurrió un error con CV Analyzer:\n{e}")
-        log_error(f"Error inesperado abrir CV Analyzer: {e}")
+        log(f"Error inesperado abrir CV Analyzer: {e}", level="ERROR")
 
 
 def agregar_keywords():
@@ -251,9 +205,8 @@ def abrir_carpeta_rrhhbot():
 def abrir_rrhh_panel():
     crear_estructura()
 
-    config = leer_config()
-    titulo = config.get("titulo", "Panel de Mantenimiento - RRHH")
-    modo_oscuro = config.get("modo_oscuro", "false").lower() == "true"
+    titulo = CONFIG.get("titulo", "Panel de Mantenimiento - RRHH")
+    modo_oscuro = CONFIG.get("modo_oscuro", "false").lower() == "true"
 
     ventana = tk.Toplevel()
     ventana.title(titulo)
@@ -263,7 +216,7 @@ def abrir_rrhh_panel():
     try:
         ventana.iconbitmap("assets/Guante.ico")
     except Exception as e:
-        log_warning(f"No se pudo cargar icono en RRHH: {e}")
+        log(f"No se pudo cargar icono en RRHH: {e}", level="WARNING")
 
     if modo_oscuro:
         ventana.configure(bg="#1e1e1e")
@@ -297,4 +250,4 @@ def abrir_rrhh_panel():
     tk.Button(frame_tecnico, text="Abrir carpeta RRHHBot", width=30, command=abrir_carpeta_rrhhbot).pack(pady=2)
 
     ventana.bind("<Control-s>", mostrar_modo_tecnico)
-    log_info("Subpanel RRHH iniciado.")
+    log("Subpanel RRHH iniciado.")
