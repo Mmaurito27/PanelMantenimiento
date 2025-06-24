@@ -32,6 +32,13 @@ def verificar_estructura_inicial():
             os.makedirs(carpeta, exist_ok=True)
             log(f'Se creó la carpeta {carpeta}')
 
+    # crear archivo log inicial
+    log_path = os.path.join('logs', 'panel.log')
+    if not os.path.exists(log_path):
+        with open(log_path, 'a', encoding='utf-8'):
+            pass
+        log('Se creó logs/panel.log')
+
     # ---------- Archivos requeridos ----------
     entorno = os.path.join('config', 'entorno.txt')
     if not os.path.exists(entorno):
@@ -222,13 +229,17 @@ def restaurar_backup():
     ttk.Button(win, text="Restaurar", command=restaurar).pack(pady=5)
 
 # ---------- PANEL PRINCIPAL ----------
+# Verificar la estructura antes de iniciar la interfaz
+temp_root = tk.Tk()
+temp_root.withdraw()
+verificar_estructura_inicial()
+temp_root.destroy()
+
 root = tk.Tk()
 root.geometry("400x500")
 root.resizable(False, False)
 style = ttk.Style()
 style.theme_use("clam")
-
-verificar_estructura_inicial()
 verificar_dependencias()
 detectar_modo_ejecucion()
 version_actual = update_checker.get_local_version()

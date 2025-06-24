@@ -1,6 +1,9 @@
 import os
 import getpass
 from datetime import datetime
+from colorama import Fore, Style, init
+
+init()
 
 LOG_PATH = os.path.join('logs', 'panel.log')
 os.makedirs('logs', exist_ok=True)
@@ -11,6 +14,12 @@ def log(message: str, level: str = 'INFO') -> None:
     entry = f"{timestamp} [{level}] ({user}) {message}\n"
     with open(LOG_PATH, 'a', encoding='utf-8') as f:
         f.write(entry)
+    color = {
+        'INFO': Fore.WHITE,
+        'WARNING': Fore.YELLOW,
+        'ERROR': Fore.RED,
+    }.get(level, Fore.WHITE)
+    print(color + entry.strip() + Style.RESET_ALL)
 
 import csv
 USUARIOS_LOG = os.path.join('logs', 'usuarios.csv')
