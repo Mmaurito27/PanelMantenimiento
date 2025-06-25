@@ -1,52 +1,42 @@
 @echo off
-setlocal enableextensions
+rem Instalador del Panel de Mantenimiento General
+setlocal
 
-rem Crear carpetas necesarias
-for %%d in (logs config launchers subpanels assets) do (
-    if not exist "%%d" mkdir "%%d"
-)
+echo === Inicio de instalacion ===
 
-rem Copiar archivo de entorno por defecto
-if not exist "config\entorno.txt" (
-    if exist "docs\entorno_default.txt" (
-        copy "docs\entorno_default.txt" "config\entorno.txt" >nul
+rem 1. Verificar carpeta python y extraer runtime si es necesario
+if not exist "python\python.exe" (
+    echo Extrayendo Python embebido...
+    if exist "_internal\python_runtime.zip" (
+        powershell -Command "Expand-Archive -Path '_internal\\python_runtime.zip' -DestinationPath 'python' -Force"
     ) else (
-        echo modo_oscuro=false>"config\entorno.txt"
-        echo titulo=Panel de Mantenimiento General>>"config\entorno.txt"
-        echo documentacion=docs/manual.pdf>>"config\entorno.txt"
+        echo ERROR: No se encontro _internal\python_runtime.zip
+        pause
+        exit /b 1
     )
+) else (
+    echo Carpeta python existente.
 )
 
-rem Crear archivo de log
-if not exist "logs\panel.log" type nul > "logs\panel.log"
-
-rem Verificar ejecutables
-set missing=0
-if not exist "launchers\cv_api_launcher.exe" (
-    echo FALTA: cv_api_launcher.exe
-    set missing=1
+rem 2. Copiar sitecustomize.py a site-packages
+if not exist "python\Lib\site-packages" (
+    mkdir "python\Lib\site-packages" >nul 2>&1
 )
-if not exist "launchers\n8n_launcher.exe" (
-    echo FALTA: n8n_launcher.exe
-    set missing=1
+if exist "sitecustomize.py" (
+    copy /Y "sitecustomize.py" "python\Lib\site-packages\" >nul
+    echo sitecustomize.py copiado.
+) else (
+    echo ADVERTENCIA: sitecustomize.py no encontrado.
 )
 
-rem Comprobar presencia de Python embebido
-if not exist "_internal\python3*.dll" (
-    echo Aviso: Python embebido no encontrado. Instale Python si es necesario.
-)
+rem 3. Instalar dependencias con pip del python embebido
+echo Instalando dependencias...
+"python\python.exe" -m pip install -r requirements.txt
 
-if %missing%==1 (
-    echo Por favor copie los ejecutables faltantes a la carpeta launchers.
-    start "" explorer "%cd%\launchers"
-)
+rem 4. Lanzar el panel con el mismo Python
+echo Lanzando Panel de Mantenimiento...
+"python\python.exe" panel_mantenimiento_general.py
 
-if not exist "requirements.txt" (
-    type nul > "requirements.txt"
-)
-if exist "requirements.txt" (
-    pip install -r requirements.txt
-)
+echo === Instalacion finalizada ===
+pause
 
-echo Entorno listo.
-exit /b
