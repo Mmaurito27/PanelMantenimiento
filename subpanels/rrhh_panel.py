@@ -1,6 +1,7 @@
 import os
 import tkinter as tk
 from tkinter import messagebox
+import customtkinter as ctk
 import subprocess
 import webbrowser
 import json
@@ -295,3 +296,20 @@ def abrir_rrhh_panel():
 
     ventana.bind("<Control-s>", mostrar_modo_tecnico)
     log("Subpanel RRHH iniciado.")
+
+
+def load_panel(parent):
+    crear_estructura()
+    frame = ctk.CTkFrame(parent)
+
+    def tarjeta(texto, comando):
+        card = ctk.CTkFrame(frame)
+        ctk.CTkLabel(card, text=texto, font=("Arial", 14, "bold")).pack(pady=(10,5))
+        ctk.CTkButton(card, text=texto, command=comando, width=200, height=40).pack(pady=(0,10))
+        return card
+
+    tarjeta("Ejecutar CV Analyzer", ejecutar_cv_api).pack(fill="x", padx=20, pady=10)
+    tarjeta("Abrir N8N", abrir_n8n).pack(fill="x", padx=20, pady=10)
+    tarjeta("Agregar nueva keyword", agregar_keywords).pack(fill="x", padx=20, pady=10)
+
+    return frame
