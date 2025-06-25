@@ -1,6 +1,9 @@
 import os
 import unittest
-from panel_mantenimiento_general import verificar_estructura_inicial
+import pytest
+
+pytest.importorskip("customtkinter")
+from admin.panel_mantenimiento_general import verificar_estructura_inicial
 
 class BasicTest(unittest.TestCase):
     def test_estructura(self):
