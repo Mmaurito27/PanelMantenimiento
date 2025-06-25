@@ -2,6 +2,8 @@ import os
 import json
 import urllib.request
 from tkinter import messagebox
+from logger import log
+from update import aplicar_actualizacion
 
 VERSION_FILE = os.path.join('config', 'version.txt')
 UPDATE_INFO_URL = 'https://example.com/panel/version.json'
@@ -27,14 +29,18 @@ def check_for_update():
 
     if remote and exe_url and remote != local_ver:
         if messagebox.askyesno(
-            'Actualizaci\u00f3n',
-            f'Se encontr\u00f3 la versi\u00f3n {remote}. \u00bfDescargar e instalar?'
+            'Actualización',
+            f'Se encontró la versión {remote}. ¿Descargar e instalar?'
         ):
             try:
-                with urllib.request.urlopen(exe_url) as r, open('update.exe', 'wb') as f:
+                with urllib.request.urlopen(exe_url) as r, open('update.zip', 'wb') as f:
                     f.write(r.read())
-                messagebox.showinfo('Actualizaci\u00f3n', 'Descarga completa. Reinicie la aplicaci\u00f3n.')
+                if aplicar_actualizacion('update.zip'):
+                    messagebox.showinfo('Actualización', 'Actualización aplicada. Reinicie la aplicación.')
+                else:
+                    messagebox.showerror('Error', 'La actualización falló y se revirtió la versión previa.')
             except Exception as e:
                 messagebox.showerror('Error', f'No se pudo descargar: {e}')
+                log(f'Error descargando actualización: {e}', level='ERROR')
         return True
     return False
