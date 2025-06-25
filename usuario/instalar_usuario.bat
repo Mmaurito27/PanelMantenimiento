@@ -4,26 +4,20 @@ cd /d "%~dp0"
 
 set LOGFILE=logs\usuario_installer.log
 if not exist logs mkdir logs
->> %LOGFILE% echo ===== Inicio instalacion %date% %time% =====
+>> %LOGFILE% echo ===== Inicio instalador %date% %time% =====
 
 if not exist panel_mantenimiento_general.exe (
-    >> %LOGFILE% echo ERROR: panel_mantenimiento_general.exe no encontrado
-    echo No se encontro panel_mantenimiento_general.exe
+    echo ❌ ERROR: panel_mantenimiento_general.exe no encontrado
+    >> %LOGFILE% echo ERROR: exe faltante
     goto END
 )
 
-for %%D in (config logs) do (
-    if not exist "%%D" (
-        mkdir "%%D"
-        >> %LOGFILE% echo Creada carpeta %%D
-    )
-)
+for %%D in (config logs) do if not exist "%%D" mkdir "%%D"
 
-if exist requirements.txt (
-    >> %LOGFILE% echo Instalando dependencias
-    pip install -r requirements.txt >> %LOGFILE% 2>&1
-)
+echo Lanzando aplicacion...
+>> %LOGFILE% echo Iniciando exe %date% %time%
+start "" panel_mantenimiento_general.exe
 
 :END
->> %LOGFILE% echo ===== Fin instalacion %date% %time% =====
+>> %LOGFILE% echo ===== Fin instalador %date% %time% =====
 endlocal

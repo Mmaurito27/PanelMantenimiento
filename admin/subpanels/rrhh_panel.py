@@ -10,6 +10,7 @@ import shutil
 import threading
 import requests
 import sys
+from datetime import datetime
 
 from logger import log, log_usuario
 from config import CONFIG
@@ -17,7 +18,7 @@ from theme import aplicar_tema
 import session
 
 # -------------------- RUTAS Y CONFIG --------------------
-BASE_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "RRHHBot")
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_DIR = os.path.join(BASE_DIR, "config")
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
@@ -26,7 +27,7 @@ LOG_FILE = os.path.join(LOG_DIR, "panel.log")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "entorno.txt")
 KEYWORDS_FILE = os.path.join(CONFIG_DIR, "keywords.json")
 CV_LAUNCHER = os.path.join(LAUNCHER_DIR, "cv_api_launcher.exe")
-N8N_LAUNCHER = "n8n"
+N8N_LAUNCHER = os.path.join(LAUNCHER_DIR, "n8n_launcher.exe")
 
 
 # -------------------- RUTAS DE LOG --------------------
@@ -51,44 +52,35 @@ def puerto_en_uso(puerto):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('localhost', puerto)) == 0
 
-def n8n_disponible_en_path():
-    return shutil.which("n8n") is not None
+
 
 # -------------------- FUNCIONES DEL PANEL --------------------
 def abrir_n8n():
     try:
-        if not n8n_disponible_en_path():
-            resp = messagebox.askyesno(
-                "N8N no encontrado",
-                "❗ N8N no está instalado o no está en el PATH.\n¿Deseás instalarlo ahora?"
-            )
-            log("N8N no encontrado, ofreció instalar.", level="WARNING")
-            if resp:
-                instalar_dependencias_n8n()
+        if not os.path.exists(N8N_LAUNCHER):
+            messagebox.showwarning("Faltante", "n8n_launcher.exe no encontrado")
+            log("n8n_launcher.exe no encontrado", level="WARNING")
+            log_usuario(session.usuario_actual, 'Abrir N8N - FALTANTE')
             return
 
         if puerto_en_uso(5678):
             abrir = messagebox.askyesno(
                 "N8N ya se está ejecutando",
-                "El puerto 5678 ya está en uso.\n¿Querés abrir el navegador igualmente?"
+                "El puerto 5678 ya está en uso.\n¿Abrir navegador igualmente?"
             )
-            log("N8N ya estaba corriendo, ofreció abrir navegador.")
             if abrir:
                 abrir_navegador_n8n()
+            log("N8N ya estaba corriendo")
             return
 
         subprocess.Popen(N8N_LAUNCHER, shell=True)
         abrir_navegador_n8n()
-        log("Se ejecutó y abrió N8N.")
-        log_usuario(session.usuario_actual, 'Abrir N8N RRHH')
-        messagebox.showinfo(
-            "N8N",
-            "N8N se está ejecutando en segundo plano y se abrió el navegador."
-        )
+        log("Se ejecutó n8n_launcher.exe")
+        log_usuario(session.usuario_actual, 'Abrir N8N')
     except Exception as e:
-        messagebox.showerror("Error grave", f"Ocurrió un error al abrir N8N:\n{e}")
-        log(f"Error inesperado abrir N8N: {e}", level="ERROR")
-        log_usuario(session.usuario_actual, 'Abrir N8N RRHH - ERROR')
+        messagebox.showerror("Error", str(e))
+        log(f"Error al abrir N8N: {e}", level="ERROR")
+        log_usuario(session.usuario_actual, 'Abrir N8N - ERROR')
 
 def abrir_navegador_n8n():
     try:
@@ -142,25 +134,26 @@ def ejecutar_cv_api():
 
 
 def agregar_keywords():
-    keywords = simple_input("Ingresá las nuevas keywords separadas por coma:")
-    if keywords:
-        lista = [k.strip() for k in keywords.split(",")]
+    palabras = simple_input("Ingresá nuevas keywords separadas por coma:")
+    if not palabras:
+        return
+
+    nuevas = [k.strip() for k in palabras.split(",") if k.strip()]
+    try:
+        existentes = []
+        if os.path.exists(KEYWORDS_FILE):
+            with open(KEYWORDS_FILE, "r", encoding="utf-8") as f:
+                existentes = json.load(f)
+        lista = sorted(set(existentes + nuevas))
         with open(KEYWORDS_FILE, "w", encoding="utf-8") as f:
             json.dump(lista, f, indent=2, ensure_ascii=False)
-        try:
-            r = requests.post("http://localhost:3001/configurar-skills/", json=lista)
-            if r.status_code == 200:
-                messagebox.showinfo("Éxito", "Skills actualizadas correctamente.")
-                log(f"Se actualizaron skills: {lista}")
-                log_usuario(session.usuario_actual, 'Actualizar keywords')
-            else:
-                log(f"ERROR al actualizar skills: {r.text}")
-                messagebox.showerror("Error", f"Respuesta: {r.text}")
-                log_usuario(session.usuario_actual, 'Actualizar keywords - ERROR')
-        except Exception as e:
-            log(f"ERROR conexión API: {e}")
-            messagebox.showerror("Error", str(e))
-            log_usuario(session.usuario_actual, 'Actualizar keywords - ERROR')
+        messagebox.showinfo("Keywords", "Palabras guardadas correctamente.")
+        log_usuario(session.usuario_actual, 'Agregar keyword')
+        log(f"Keywords actualizadas: {nuevas}")
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+        log(f"Error al guardar keywords: {e}", level="ERROR")
+        log_usuario(session.usuario_actual, 'Agregar keyword - ERROR')
 
 def simple_input(prompt):
     win = tk.Toplevel()
