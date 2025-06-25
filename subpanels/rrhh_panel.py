@@ -13,6 +13,7 @@ import sys
 from logger import log, log_usuario
 from config import CONFIG
 from theme import aplicar_tema
+import session
 
 # -------------------- RUTAS Y CONFIG --------------------
 BASE_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "RRHHBot")
@@ -78,7 +79,7 @@ def abrir_n8n():
         subprocess.Popen(N8N_LAUNCHER, shell=True)
         abrir_navegador_n8n()
         log("Se ejecutó y abrió N8N.")
-        log_usuario('Abrir N8N RRHH')
+        log_usuario(session.usuario_actual, 'Abrir N8N RRHH')
         messagebox.showinfo(
             "N8N",
             "N8N se está ejecutando en segundo plano y se abrió el navegador."
@@ -86,7 +87,7 @@ def abrir_n8n():
     except Exception as e:
         messagebox.showerror("Error grave", f"Ocurrió un error al abrir N8N:\n{e}")
         log(f"Error inesperado abrir N8N: {e}", level="ERROR")
-        log_usuario('Abrir N8N RRHH', resultado='ERROR')
+        log_usuario(session.usuario_actual, 'Abrir N8N RRHH - ERROR')
 
 def abrir_navegador_n8n():
     try:
@@ -131,12 +132,12 @@ def ejecutar_cv_api():
 
         subprocess.Popen(CV_LAUNCHER, shell=True)
         log("Se ejecutó cv_api_launcher.exe")
-        log_usuario('Ejecutar CV Analyzer')
+        log_usuario(session.usuario_actual, 'Ejecutar CV Analyzer')
         messagebox.showinfo("CV API", "El Analizador de CVs se está ejecutando en segundo plano.")
     except Exception as e:
         messagebox.showerror("Error grave", f"Ocurrió un error con CV Analyzer:\n{e}")
         log(f"Error inesperado abrir CV Analyzer: {e}", level="ERROR")
-        log_usuario('Ejecutar CV Analyzer', resultado='ERROR')
+        log_usuario(session.usuario_actual, 'Ejecutar CV Analyzer - ERROR')
 
 
 def agregar_keywords():
@@ -150,15 +151,15 @@ def agregar_keywords():
             if r.status_code == 200:
                 messagebox.showinfo("Éxito", "Skills actualizadas correctamente.")
                 log(f"Se actualizaron skills: {lista}")
-                log_usuario('Actualizar keywords')
+                log_usuario(session.usuario_actual, 'Actualizar keywords')
             else:
                 log(f"ERROR al actualizar skills: {r.text}")
                 messagebox.showerror("Error", f"Respuesta: {r.text}")
-                log_usuario('Actualizar keywords', resultado='ERROR')
+                log_usuario(session.usuario_actual, 'Actualizar keywords - ERROR')
         except Exception as e:
             log(f"ERROR conexión API: {e}")
             messagebox.showerror("Error", str(e))
-            log_usuario('Actualizar keywords', resultado='ERROR')
+            log_usuario(session.usuario_actual, 'Actualizar keywords - ERROR')
 
 def simple_input(prompt):
     win = tk.Toplevel()
@@ -230,7 +231,7 @@ def editar_entorno():
         shutil.copy2(CONFIG_FILE, os.path.join(backup_dir, f'config_version_anterior_{ts}.json'))
     os.system(f'notepad "{CONFIG_FILE}"')
     log("Se editó entorno.txt")
-    log_usuario('Editar entorno')
+    log_usuario(session.usuario_actual, 'Editar entorno')
     if messagebox.askyesno(
         "Reiniciar", "¿Reiniciar el panel para aplicar cambios?"
     ):

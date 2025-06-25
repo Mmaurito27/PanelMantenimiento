@@ -11,6 +11,8 @@ import json
 from datetime import datetime
 
 from logger import log, log_usuario
+from login_window import mostrar_login
+import session
 from config import CONFIG
 from theme import aplicar_tema
 from tooltip import Tooltip
@@ -129,11 +131,11 @@ def abrir_n8n():
         subprocess.Popen("n8n", shell=True)
         abrir_navegador_n8n()
         log("N8N iniciado.")
-        log_usuario('Abrir N8N')
+        log_usuario(session.usuario_actual, 'Abrir N8N')
     except Exception as e:
         messagebox.showerror("Error grave", f"N8N falló:\n{e}")
         log(f"Error al abrir N8N: {e}", level="ERROR")
-        log_usuario('Abrir N8N', resultado='ERROR')
+        log_usuario(session.usuario_actual, 'Abrir N8N - ERROR')
 
 def abrir_navegador_n8n():
     try:
@@ -163,11 +165,11 @@ def abrir_cv_analyzer():
 
         subprocess.Popen(path, shell=True)
         log("cv_api_launcher iniciado")
-        log_usuario('Ejecutar CV Analyzer')
+        log_usuario(session.usuario_actual, 'Ejecutar CV Analyzer')
     except Exception as e:
         log(f"Error ejecutando CV Analyzer: {e}", level="ERROR")
         messagebox.showerror("Error grave", str(e))
-        log_usuario('Ejecutar CV Analyzer', resultado='ERROR')
+        log_usuario(session.usuario_actual, 'Ejecutar CV Analyzer - ERROR')
 
 
 def abrir_rrhh():
@@ -179,7 +181,7 @@ def modulo_en_desarrollo(nombre: str):
     """Muestra un aviso de módulo en desarrollo."""
     messagebox.showinfo('En desarrollo', f'El módulo {nombre} está en desarrollo')
     log(f'Módulo {nombre} en desarrollo', level='WARNING')
-    log_usuario(f'Módulo {nombre}', resultado='NO_IMPLEMENTADO')
+    log_usuario(session.usuario_actual, f'Módulo {nombre} - NO_IMPLEMENTADO')
 
 def verificar_dependencias():
     """Comprueba la existencia de dependencias principales."""
@@ -260,6 +262,10 @@ if __name__ == '__main__':
     temp_root.withdraw()
     verificar_estructura_inicial()
     temp_root.destroy()
+
+    mostrar_login()
+    import importlib
+    importlib.reload(session)
 
     root = tk.Tk()
     root.geometry("400x500")
@@ -448,11 +454,11 @@ if __name__ == '__main__':
             mod = importlib.import_module(f'subpanels.{nombre}_panel')
             getattr(mod, f'abrir_{nombre}_panel')()
             log(f'Abrió subpanel {nombre}')
-            log_usuario(f'Abrir subpanel {nombre}')
+            log_usuario(session.usuario_actual, f'Abrir subpanel {nombre}')
         except Exception as e:
             log(f'Error abriendo {nombre}: {e}', level='ERROR')
             messagebox.showerror('Error', str(e))
-            log_usuario(f'Abrir subpanel {nombre}', resultado='ERROR')
+            log_usuario(session.usuario_actual, f'Abrir subpanel {nombre} - ERROR')
     
     
     def actualizar_menu():
@@ -491,7 +497,7 @@ if __name__ == '__main__':
         actualizar_menu()
         messagebox.showinfo('Panel', 'Nuevo panel creado')
         log(f'Nuevo panel creado: {nombre}')
-        log_usuario(f'Crear panel {nombre}')
+        log_usuario(session.usuario_actual, f'Crear panel {nombre}')
     
     
     actualizar_menu()
