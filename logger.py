@@ -25,8 +25,8 @@ import csv
 USUARIOS_LOG = os.path.join('logs', 'usuarios.csv')
 
 
-def log_usuario(accion: str, usuario: str = None, resultado: str = 'OK') -> None:
-    """Registra acciones de usuario en logs/usuarios.csv"""
+def log_usuario_csv(accion: str, usuario: str = None, resultado: str = 'OK') -> None:
+    """Registra acciones de usuario en logs/usuarios.csv (mantenido por compatibilidad)."""
     if usuario is None:
         usuario = getpass.getuser()
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -37,3 +37,15 @@ def log_usuario(accion: str, usuario: str = None, resultado: str = 'OK') -> None
         if nuevo:
             writer.writerow(['timestamp', 'usuario', 'accion', 'resultado'])
         writer.writerow([timestamp, usuario, accion, resultado])
+
+
+def log_usuario(usuario: str, accion: str) -> None:
+    """Registra acciones por usuario en logs/usuarios/<usuario>.log"""
+    from session import area_actual  # import aquí para evitar ciclos
+    dir_path = os.path.join('logs', 'usuarios')
+    os.makedirs(dir_path, exist_ok=True)
+    archivo = os.path.join(dir_path, f'{usuario}.log')
+    timestamp = datetime.now().strftime('[%Y-%m-%d %H:%M:%S]')
+    linea = f"{timestamp} [{area_actual}] {accion}\n"
+    with open(archivo, 'a', encoding='utf-8') as f:
+        f.write(linea)
