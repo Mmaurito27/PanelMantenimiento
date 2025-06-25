@@ -1,60 +1,58 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
-set LOGFILE=logs\admin_installer.log
-if not exist logs mkdir logs
+set "ROOT=%~dp0"
+set "PYTHON_DIR=%ROOT%python"
+set "ZIP=%ROOT%_internal\python_runtime.zip"
+set "PYTHON_EXE=%PYTHON_DIR%\python.exe"
 
->> %LOGFILE% echo ===== Inicio instalacion %date% %time% =====
+set "LOGFILE=%ROOT%logs\admin_installer.log"
+if not exist "%ROOT%logs" mkdir "%ROOT%logs"
+>> "%LOGFILE%" echo ===== Inicio instalacion %date% %time% =====
 
-rem 1. Verificar python embebido
-if not exist "python\python.exe" (
-    if exist "_internal\python_runtime.zip" (
-        >> %LOGFILE% echo Extrayendo runtime de Python
-        powershell -Command "Expand-Archive -Path '_internal\\python_runtime.zip' -DestinationPath 'python' -Force" >> %LOGFILE% 2>&1
-    ) else (
-        >> %LOGFILE% echo ERROR: _internal\python_runtime.zip no encontrado
-        echo No se encontro _internal\python_runtime.zip
-        goto END
-    )
+rem 1. Verificar Python embebido
+if not exist "%PYTHON_EXE%" (
+    echo Extrayendo entorno Python embebido...
+    powershell -Command "try { Expand-Archive -Path '%ZIP%' -DestinationPath '%PYTHON_DIR%' -Force } catch { exit 1 }" >> "%LOGFILE%" 2>&1
+)
+if not exist "%PYTHON_EXE%" (
+    >> "%LOGFILE%" echo ERROR: No se pudo extraer python_runtime.zip
+    echo ❌ Python embebido no disponible.
+    goto END
 ) else (
-    >> %LOGFILE% echo Python embebido ya existente
+    >> "%LOGFILE%" echo Python embebido disponible
 )
 
 rem 2. Copiar sitecustomize.py
 if exist "sitecustomize.py" (
-    if not exist "python\Lib\site-packages" mkdir "python\Lib\site-packages"
-    copy /Y "sitecustomize.py" "python\Lib\site-packages\sitecustomize.py" >nul
-    >> %LOGFILE% echo Copiado sitecustomize.py
-) else (
-    >> %LOGFILE% echo sitecustomize.py no encontrado
+    if not exist "%PYTHON_DIR%\Lib\site-packages" mkdir "%PYTHON_DIR%\Lib\site-packages"
+    copy /Y "sitecustomize.py" "%PYTHON_DIR%\Lib\site-packages\sitecustomize.py" >nul
+    >> "%LOGFILE%" echo Copiado sitecustomize.py
 )
 
 rem 3. Instalar dependencias
->> %LOGFILE% echo Instalando dependencias
-"python\python.exe" -m pip install -r requirements.txt >> %LOGFILE% 2>&1
+echo Instalando dependencias...
+"%PYTHON_EXE%" -m ensurepip >> "%LOGFILE%" 2>&1
+"%PYTHON_EXE%" -m pip install --upgrade pip >> "%LOGFILE%" 2>&1
+"%PYTHON_EXE%" -m pip install -r "%ROOT%requirements.txt" >> "%LOGFILE%" 2>&1
 
 rem 4. Crear carpetas necesarias
 for %%D in (logs config launchers subpanels docs) do (
     if not exist "%%D" (
         mkdir "%%D"
-        >> %LOGFILE% echo Creada carpeta %%D
+        >> "%LOGFILE%" echo Creada carpeta %%D
     )
 )
 
 rem 5. Verificar ejecutables
-set FALTANTES=
-if not exist "launchers\cv_api_launcher.exe" set FALTANTES=%FALTANTES% cv_api_launcher.exe
-if not exist "launchers\n8n_launcher.exe" set FALTANTES=%FALTANTES% n8n_launcher.exe
-if not "%FALTANTES%"=="" (
-    >> %LOGFILE% echo ADVERTENCIA: faltan%FALTANTES%
-    echo Faltan ejecutables:%FALTANTES%
-)
+if not exist "%ROOT%launchers\cv_api_launcher.exe" echo ⚠️ FALTA: cv_api_launcher.exe
+if not exist "%ROOT%launchers\n8n_launcher.exe" echo ⚠️ FALTA: n8n_launcher.exe
 
-rem 6. Lanzar panel
->> %LOGFILE% echo Lanzando panel
-"python\python.exe" panel_mantenimiento_general.py >> %LOGFILE% 2>&1
+rem 6. Lanzar el panel
+>> "%LOGFILE%" echo Lanzando panel
+"%PYTHON_EXE%" "%ROOT%panel_mantenimiento_general.py" >> "%LOGFILE%" 2>&1
 
 :END
->> %LOGFILE% echo ===== Fin instalacion %date% %time% =====
+>> "%LOGFILE%" echo ===== Fin instalacion %date% %time% =====
 endlocal
