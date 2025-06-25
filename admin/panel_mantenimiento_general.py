@@ -264,9 +264,13 @@ if __name__ == '__main__':
     verificar_estructura_inicial()
     temp_root.destroy()
 
-    mostrar_login()
+    login_ok = mostrar_login()
     import importlib
     importlib.reload(session)
+    if not login_ok or not session.usuario_actual:
+        log("Login cancelado", level="WARNING")
+        print("Login cancelado. Cerrando aplicacion.")
+        sys.exit(0)
 
     ctk.set_appearance_mode("dark")
 
