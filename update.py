@@ -2,6 +2,8 @@ import json
 import os
 import sys
 import urllib.request
+import shutil
+import zipfile
 
 from logger import log
 from config import CONFIG, CONFIG_FILE
@@ -40,6 +42,31 @@ def actualizar_entorno(modo: str) -> None:
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         f.writelines(lineas)
 
+
+def is_running_exe() -> bool:
+    """Devuelve True si la aplicación se ejecuta como .exe."""
+    return getattr(sys, 'frozen', False)
+
+
+def ensure_embedded_python() -> None:
+    """Extrae el runtime de Python si es necesario."""
+    if not is_running_exe():
+        return
+    runtime = os.path.join('_internal', 'python', 'python.exe')
+    if os.path.exists(runtime):
+        return
+    zip_path = os.path.join('_internal', 'python_runtime.zip')
+    if os.path.exists(zip_path):
+        try:
+            os.makedirs(os.path.join('_internal', 'python'), exist_ok=True)
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                zf.extractall(os.path.join('_internal', 'python'))
+            log('Runtime de Python extraído en _internal/python')
+        except Exception as e:
+            log(f'No se pudo extraer runtime: {e}', level='ERROR')
+    else:
+        log('python_runtime.zip no encontrado', level='WARNING')
+
 GITHUB_JSON = "https://raw.githubusercontent.com/example/repo/master/version.json"
 
 
@@ -64,6 +91,29 @@ def buscar_actualizaciones(version_actual: str, offline_path="updates/latest.zip
             log(f"Error al descargar actualización: {e}", level="ERROR")
     else:
         log("No hay actualizaciones disponibles")
+
+
+def aplicar_actualizacion(zip_path: str) -> bool:
+    """Intenta aplicar una actualización ZIP con rollback automático."""
+    backup_dir = '_backup'
+    try:
+        if os.path.exists(backup_dir):
+            shutil.rmtree(backup_dir)
+        os.makedirs(backup_dir, exist_ok=True)
+        for item in os.listdir('.'):
+            if item.startswith('_'):
+                continue
+            shutil.move(item, os.path.join(backup_dir, item))
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall('.')
+        log('Actualización aplicada correctamente')
+        return True
+    except Exception as e:
+        log(f'Error aplicando actualización: {e}', level='ERROR')
+        if os.path.exists(backup_dir):
+            for item in os.listdir(backup_dir):
+                shutil.move(os.path.join(backup_dir, item), item)
+        return False
 
 import zipfile
 import requests
