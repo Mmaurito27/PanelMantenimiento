@@ -264,11 +264,26 @@ if __name__ == '__main__':
     verificar_estructura_inicial()
     try:
         if update_checker.hay_actualizacion_disponible():
-            messagebox.showinfo(
+            if messagebox.askyesno(
                 "Actualizaci\u00f3n",
-                "\ud83d\udd14 Nueva versi\u00f3n disponible del Panel de Mantenimiento.\n"
-                "Visite el repositorio o contacte al administrador para actualizar."
-            )
+                "Hay una nueva versi\u00f3n. \u00bfDese\u00e1s actualizar ahora?",
+            ):
+                ok = update_checker.descargar_e_instalar_actualizacion()
+                if ok:
+                    if messagebox.askyesno(
+                        "Actualizaci\u00f3n",
+                        "Actualizaci\u00f3n completada. \u00bfReiniciar ahora?",
+                    ):
+                        if is_running_exe():
+                            subprocess.Popen([sys.argv[0]])
+                        else:
+                            subprocess.Popen([sys.executable] + sys.argv)
+                        sys.exit(0)
+                else:
+                    messagebox.showerror(
+                        "Actualizaci\u00f3n",
+                        "No se pudo actualizar. Revise los logs.",
+                    )
     except Exception:
         pass
     temp_root.destroy()
