@@ -37,6 +37,22 @@ echo Instalando dependencias...
 "%PYTHON_EXE%" -m pip install --upgrade pip >> "%LOGFILE%" 2>&1
 "%PYTHON_EXE%" -m pip install -r "%ROOT%requirements.txt" >> "%LOGFILE%" 2>&1
 
+rem Compilar ejecutable con PyInstaller
+echo Compilando ejecutable...
+"%PYTHON_EXE%" -m PyInstaller ^
+--onefile --noconsole ^
+--add-data "config;config" ^
+--add-data "subpanels;subpanels" ^
+--distpath "%ROOT%" ^
+"%ROOT%panel_mantenimiento_general.py" >> "%LOGFILE%" 2>&1
+if exist "%ROOT%panel_mantenimiento_general.exe" (
+    echo ✅ Ejecutable generado correctamente
+    >> "%LOGFILE%" echo Ejecutable generado correctamente
+) else (
+    echo ❌ Error: No se pudo generar el ejecutable
+    >> "%LOGFILE%" echo ERROR: No se pudo generar el ejecutable
+)
+
 rem 4. Crear carpetas necesarias
 for %%D in (logs config launchers subpanels docs) do (
     if not exist "%%D" (
@@ -51,7 +67,7 @@ if not exist "%ROOT%launchers\n8n_launcher.exe" echo ⚠️ FALTA: n8n_launcher.
 
 rem 6. Lanzar el panel
 >> "%LOGFILE%" echo Lanzando panel
-"%PYTHON_EXE%" "%ROOT%panel_mantenimiento_general.py" >> "%LOGFILE%" 2>&1
+start "" "%ROOT%panel_mantenimiento_general.exe"
 
 :END
 >> "%LOGFILE%" echo ===== Fin instalacion %date% %time% =====
