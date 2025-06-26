@@ -262,6 +262,15 @@ if __name__ == '__main__':
     temp_root = tk.Tk()
     temp_root.withdraw()
     verificar_estructura_inicial()
+    try:
+        if update_checker.hay_actualizacion_disponible():
+            messagebox.showinfo(
+                "Actualizaci\u00f3n",
+                "\ud83d\udd14 Nueva versi\u00f3n disponible del Panel de Mantenimiento.\n"
+                "Visite el repositorio o contacte al administrador para actualizar."
+            )
+    except Exception:
+        pass
     temp_root.destroy()
 
     mostrar_login()
